@@ -15,8 +15,18 @@ class NoteRead(BaseModel):
         from_attributes = True
 
 
+class NoteSearchResponse(BaseModel):
+    items: list[NoteRead]
+    total: int
+    page: int
+    page_size: int
+
+
 class ActionItemCreate(BaseModel):
     description: str
+
+class ActionItemsBulkComplete(BaseModel):
+    ids: list[int]
 
 
 class ActionItemRead(BaseModel):
