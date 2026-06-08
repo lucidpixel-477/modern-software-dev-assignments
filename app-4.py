@@ -54,7 +54,7 @@ def create_task():
     db.session.commit()
     return jsonify({"id": task.id, "title": task.title, "category_id": task.category_id})
 
-# === TASK 4: PAGINATION & SORTING (ºËÐÄÍê³É) ===
+# === TASK 4: PAGINATION & SORTING (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½) ===
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     page = request.args.get("page", 1, type=int)
