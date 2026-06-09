@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
-from typing import Optional
 
+from .config import settings
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
-DB_PATH = DATA_DIR / "app.db"
+DatabaseRow = sqlite3.Row
 
 
 def ensure_data_directory_exists() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:
     ensure_data_directory_exists()
-    connection = sqlite3.connect(DB_PATH)
+    connection = sqlite3.connect(settings.db_path)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -57,14 +54,14 @@ def insert_note(content: str) -> int:
         return int(cursor.lastrowid)
 
 
-def list_notes() -> list[sqlite3.Row]:
+def list_notes() -> list[DatabaseRow]:
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("SELECT id, content, created_at FROM notes ORDER BY id DESC")
         return list(cursor.fetchall())
 
 
-def get_note(note_id: int) -> Optional[sqlite3.Row]:
+def get_note(note_id: int) -> DatabaseRow | None:
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute(
@@ -75,7 +72,7 @@ def get_note(note_id: int) -> Optional[sqlite3.Row]:
         return row
 
 
-def insert_action_items(items: list[str], note_id: Optional[int] = None) -> list[int]:
+def insert_action_items(items: list[str], note_id: int | None = None) -> list[int]:
     with get_connection() as connection:
         cursor = connection.cursor()
         ids: list[int] = []
@@ -89,7 +86,7 @@ def insert_action_items(items: list[str], note_id: Optional[int] = None) -> list
         return ids
 
 
-def list_action_items(note_id: Optional[int] = None) -> list[sqlite3.Row]:
+def list_action_items(note_id: int | None = None) -> list[DatabaseRow]:
     with get_connection() as connection:
         cursor = connection.cursor()
         if note_id is None:
@@ -112,5 +109,23 @@ def mark_action_item_done(action_item_id: int, done: bool) -> None:
             (1 if done else 0, action_item_id),
         )
         connection.commit()
+
+
+def note_to_dict(row: DatabaseRow) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "content": row["content"],
+        "created_at": row["created_at"],
+    }
+
+
+def action_item_to_dict(row: DatabaseRow) -> dict[str, object]:
+    return {
+        "id": row["id"],
+        "note_id": row["note_id"],
+        "text": row["text"],
+        "done": bool(row["done"]),
+        "created_at": row["created_at"],
+    }
 
 

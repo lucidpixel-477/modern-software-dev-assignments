@@ -1,21 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import ActionItem
-from ..schemas import ActionItemCreate, ActionItemRead, ActionItemsBulkComplete
+from ..schemas import ActionItemCreate, ActionItemListResponse, ActionItemRead, ActionItemsBulkComplete
 
 router = APIRouter(prefix="/action-items", tags=["action_items"])
 
 
-@router.get("/", response_model=list[ActionItemRead])
-def list_items(completed: bool | None = Query(default=None), db: Session = Depends(get_db)) -> list[ActionItemRead]:
-    query = select(ActionItem)
+@router.get("/", response_model=ActionItemListResponse)
+def list_items(
+    completed: bool | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1),
+    db: Session = Depends(get_db),
+) -> ActionItemListResponse:
+    total_query = select(func.count()).select_from(ActionItem)
+    data_query = select(ActionItem)
+
     if completed is not None:
-        query = query.where(ActionItem.completed.is_(completed))
-    rows = db.execute(query).scalars().all()
-    return [ActionItemRead.model_validate(row) for row in rows]
+        total_query = total_query.where(ActionItem.completed.is_(completed))
+        data_query = data_query.where(ActionItem.completed.is_(completed))
+
+    total = db.execute(total_query).scalar_one()
+
+    offset = (page - 1) * page_size
+    rows = db.execute(
+        data_query.order_by(ActionItem.id.desc()).offset(offset).limit(page_size)
+    ).scalars().all()
+
+    return ActionItemListResponse(
+        items=[ActionItemRead.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post("/", response_model=ActionItemRead, status_code=201)

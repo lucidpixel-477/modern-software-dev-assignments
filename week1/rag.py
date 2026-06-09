@@ -37,7 +37,23 @@ QUESTION = (
 
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """
+You are a careful Python coding assistant.
+
+You must write code using only the API information provided in the user's Context.
+Do not invent endpoints, base URLs, headers, fields, or response formats.
+Follow the documented API exactly.
+
+Requirements:
+- Output exactly one fenced Python code block.
+- Include all necessary imports.
+- Define the function exactly as requested.
+- Use requests.get to call the documented endpoint.
+- Use the documented authentication header.
+- Raise an exception for non-200 responses.
+- Return only the user's name string.
+- Do not include explanation outside the code block.
+"""
 
 
 # For this simple example
@@ -56,7 +72,7 @@ def YOUR_CONTEXT_PROVIDER(corpus: List[str]) -> List[str]:
 
     For example, return [] to simulate missing context, or [corpus[0]] to include the API docs.
     """
-    return []
+    return [corpus[0]]
 
 
 def make_user_prompt(question: str, context_docs: List[str]) -> str:

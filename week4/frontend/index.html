@@ -9,6 +9,7 @@
   <body>
     <main>
       <h1>Modern Software Dev Starter</h1>
+      <div id="error-banner" class="error-banner" style="display:none"></div>
 
       <section>
         <h2>Notes</h2>
@@ -17,6 +18,9 @@
           <input id="note-content" placeholder="Content" required />
           <button type="submit">Add</button>
         </form>
+        <div class="search-bar">
+          <input id="note-search" type="search" placeholder="Search notes..." />
+        </div>
         <ul id="notes"></ul>
       </section>
 

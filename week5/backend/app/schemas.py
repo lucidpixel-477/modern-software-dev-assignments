@@ -29,6 +29,13 @@ class ActionItemsBulkComplete(BaseModel):
     ids: list[int]
 
 
+class ActionItemListResponse(BaseModel):
+    items: list["ActionItemRead"]
+    total: int
+    page: int
+    page_size: int
+
+
 class ActionItemRead(BaseModel):
     id: int
     description: str

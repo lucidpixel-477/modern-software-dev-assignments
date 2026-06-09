@@ -70,7 +70,29 @@ TOOL_REGISTRY: Dict[str, Callable[..., str]] = {
 # ==========================
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """
+You are a tool-calling assistant.
+
+Your task is to call exactly one available tool by returning a single JSON object.
+
+Available tool:
+- output_every_func_return_type(file_path: str): returns a newline-delimited list of "name: return_type" for each top-level function in a Python file.
+
+When the user asks you to call the tool, you must return only valid JSON, with no explanation, no Markdown, and no code fences.
+
+The JSON object must have exactly this structure:
+{
+  "tool": "output_every_func_return_type",
+  "args": {
+    "file_path": "tool_calling.py"
+  }
+}
+
+Do not answer in natural language.
+Do not include any extra keys.
+Do not change the tool name.
+Do not omit the args object.
+"""
 
 
 def resolve_path(p: str) -> str:

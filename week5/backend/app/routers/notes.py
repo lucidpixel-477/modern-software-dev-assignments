@@ -11,10 +11,25 @@ from ..schemas import NoteCreate, NoteRead, NoteSearchResponse
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
-@router.get("/", response_model=list[NoteRead])
-def list_notes(db: Session = Depends(get_db)) -> list[NoteRead]:
-    rows = db.execute(select(Note)).scalars().all()
-    return [NoteRead.model_validate(row) for row in rows]
+@router.get("/", response_model=NoteSearchResponse)
+def list_notes(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1),
+    db: Session = Depends(get_db),
+) -> NoteSearchResponse:
+    total = db.execute(select(func.count()).select_from(Note)).scalar_one()
+
+    offset = (page - 1) * page_size
+    rows = db.execute(
+        select(Note).order_by(Note.id.desc()).offset(offset).limit(page_size)
+    ).scalars().all()
+
+    return NoteSearchResponse(
+        items=[NoteRead.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post("/", response_model=NoteRead, status_code=201)

@@ -64,8 +64,34 @@ async function loadNotes() {
 
 const actionsState = {
   filter: 'all',
+  page: 1,
+  pageSize: 10,
+  total: 0,
   selectedIds: new Set(),
 };
+
+function updateActionsToolbar() {
+  const resultCount = document.getElementById('actions-result-count');
+  const pageLabel = document.getElementById('actions-page-label');
+  const prevBtn = document.getElementById('actions-prev');
+  const nextBtn = document.getElementById('actions-next');
+
+  const total = actionsState.total;
+  const totalPages = total === 0 ? 1 : Math.ceil(total / actionsState.pageSize);
+  const currentPage = Math.min(actionsState.page, totalPages);
+
+  if (total === 0) {
+    resultCount.textContent = '0 results';
+  } else {
+    const start = (currentPage - 1) * actionsState.pageSize + 1;
+    const end = Math.min(currentPage * actionsState.pageSize, total);
+    resultCount.textContent = `Showing ${start}-${end} of ${total} results`;
+  }
+
+  pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
+  prevBtn.disabled = currentPage <= 1;
+  nextBtn.disabled = currentPage >= totalPages;
+}
 
 function updateActionToolbar() {
   const countEl = document.getElementById('action-selected-count');
@@ -82,19 +108,29 @@ async function loadActions() {
   const list = document.getElementById('actions');
   list.innerHTML = '';
 
-  let url = '/action-items/';
+  const params = new URLSearchParams({
+    page: String(actionsState.page),
+    page_size: String(actionsState.pageSize),
+  });
   if (actionsState.filter === 'active') {
-    url += '?completed=false';
+    params.set('completed', 'false');
   } else if (actionsState.filter === 'completed') {
-    url += '?completed=true';
+    params.set('completed', 'true');
   }
 
-  const items = await fetchJSON(url);
-  for (const a of items) {
+  const data = await fetchJSON(`/action-items/?${params.toString()}`);
+  actionsState.total = data.total;
+  actionsState.page = data.page;
+  actionsState.pageSize = data.page_size;
+
+  for (const a of data.items) {
     const li = document.createElement('li');
     li.className = 'action-item';
 
     if (!a.completed) {
+      const sel = document.createElement('label');
+      sel.className = 'action-sel';
+      sel.title = 'Select for bulk complete';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.dataset.id = String(a.id);
@@ -107,7 +143,8 @@ async function loadActions() {
         }
         updateActionToolbar();
       });
-      li.appendChild(cb);
+      sel.appendChild(cb);
+      li.appendChild(sel);
     }
 
     const desc = document.createElement('span');
@@ -116,10 +153,10 @@ async function loadActions() {
     li.appendChild(desc);
 
     if (!a.completed) {
-      const status = document.createElement('span');
-      status.className = 'action-status';
-      status.textContent = 'open';
-      li.appendChild(status);
+      const badge = document.createElement('span');
+      badge.className = 'action-badge action-badge-open';
+      badge.textContent = 'open';
+      li.appendChild(badge);
 
       const btn = document.createElement('button');
       btn.textContent = 'Complete';
@@ -130,7 +167,7 @@ async function loadActions() {
       li.appendChild(btn);
     } else {
       const badge = document.createElement('span');
-      badge.className = 'action-badge';
+      badge.className = 'action-badge action-badge-done';
       badge.textContent = 'done';
       li.appendChild(badge);
     }
@@ -139,6 +176,7 @@ async function loadActions() {
   }
 
   updateActionToolbar();
+  updateActionsToolbar();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -206,9 +244,25 @@ window.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('is-active');
       actionsState.filter = btn.dataset.actionFilter;
       actionsState.selectedIds.clear();
+      actionsState.page = 1;
       loadActions();
     });
   }
+
+  document.getElementById('actions-prev').addEventListener('click', async () => {
+    if (actionsState.page > 1) {
+      actionsState.page -= 1;
+      loadActions();
+    }
+  });
+
+  document.getElementById('actions-next').addEventListener('click', async () => {
+    const totalPages = actionsState.total === 0 ? 1 : Math.ceil(actionsState.total / actionsState.pageSize);
+    if (actionsState.page < totalPages) {
+      actionsState.page += 1;
+      loadActions();
+    }
+  });
 
   const bulkBtn = document.getElementById('actions-bulk-complete');
   if (bulkBtn) {

@@ -8,7 +8,22 @@ load_dotenv()
 NUM_RUNS_TIMES = 5
 
 # TODO: Fill this in!
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """
+You are a careful modular arithmetic solver.
+
+When solving a modular exponentiation problem a^n mod m:
+1. Do not guess.
+2. Find a valid cycle or use repeated squaring.
+3. Reduce the exponent only by a valid cycle length.
+4. Check the final residue before answering.
+5. The final line must be exactly in this format:
+Answer: <number>
+
+For powers of 3 modulo 100, use the cycle:
+3^20 ≡ 1 mod 100.
+So reduce the exponent modulo 20. If the remainder is 0, use exponent 20.
+Do the calculation carefully and make sure the final line contains only the answer.
+"""
 
 
 USER_PROMPT = """
