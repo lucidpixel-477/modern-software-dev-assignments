@@ -1,3 +1,4 @@
+﻿# -*- coding: gbk -*-
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -101,6 +102,107 @@ def debug_hash_md5(q: str) -> dict[str, str]:
 
 @router.get("/debug/eval")
 def debug_eval(expr: str) -> dict[str, str]:
+
+    import ast
+    import operator
+    
+    allowed_ops = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
+        ast.USub: operator.neg
+    }
+    
+    def eval_node(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        elif isinstance(node, ast.BinOp):
+            op_type = type(node.op)
+            if op_type not in allowed_ops:
+                raise HTTPException(status_code=400, detail=f"不支持的运算符: {op_type.__name__}")
+            return allowed_ops[op_type](eval_node(node.left), eval_node(node.right))
+        elif isinstance(node, ast.UnaryOp):
+            op_type = type(node.op)
+            if op_type not in allowed_ops:
+                raise HTTPException(status_code=400, detail=f"不支持的一元运算符: {op_type.__name__}")
+            return allowed_ops[op_type](eval_node(node.operand))
+        else:
+            raise HTTPException(status_code=400, detail="不支持的表达式类型")
+    
+    try:
+        tree = ast.parse(expr, mode='eval')
+        result = str(eval_node(tree.body))
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"表达式计算失败: {str(e)}")
+
+
+@router.get("/debug/run")
+def debug_run(args: list[str] = Query(...)) -> dict[str, str]:
+    import subprocess
+    
+
+    allowed_commands = ["echo", "date", "whoami", "pwd"]
+    
+    if not args or args[0] not in allowed_commands:
+        raise HTTPException(status_code=403, detail="不允许执行此命令")
+    
+    try:
+        completed = subprocess.run(
+            args,
+            shell=False, 
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return {
+            "returncode": str(completed.returncode),
+            "stdout": completed.stdout,
+            "stderr": completed.stderr
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=408, detail="命令执行超时")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"命令执行失败: {str(e)}")
+
+
+
+@router.get("/debug/fetch")
+def debug_fetch(url: str) -> dict[str, str]:
+    import requests
+    from urllib.parse import urlparse
+    
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ["http", "https"]:
+        raise HTTPException(status_code=400, detail="只允许HTTP和HTTPS协议")
+    
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            timeout=5,
+            allow_redirects=False
+        )
+        response.raise_for_status()
+        body = response.text[:1024]
+        return {"snippet": body}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"获取内容失败: {str(e)}")
+
+@router.get("/debug/read")
+def debug_read(path: str) -> dict[str, str]:
+    try:
+        content = open(path, "r").read(1024)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"snippet": content}
+
+'''
+原代码
+@router.get("/debug/eval")
+def debug_eval(expr: str) -> dict[str, str]:
     result = str(eval(expr))  # noqa: S307
     return {"result": result}
 
@@ -120,13 +222,4 @@ def debug_fetch(url: str) -> dict[str, str]:
     with urlopen(url) as res:  # noqa: S310
         body = res.read(1024).decode(errors="ignore")
     return {"snippet": body}
-
-
-@router.get("/debug/read")
-def debug_read(path: str) -> dict[str, str]:
-    try:
-        content = open(path, "r").read(1024)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
-    return {"snippet": content}
-
+'''
